@@ -43,6 +43,9 @@ public class Prenda {
 
     @Column
     private java.time.LocalDate ultimoUso;
+    
+    @Column
+    private String marca;
 
     public List<Outfit> getOutfits() { return outfits; }
     public void setOutfits(List<Outfit> outfits) { this.outfits = outfits; }
@@ -57,6 +60,7 @@ public class Prenda {
     public String getTipo() { return tipo; }
     public Integer getVecesUsado() { return vecesUsado; }
     public java.time.LocalDate getUltimoUso() { return ultimoUso; }
+    public String getMarca() { return marca; }
 
     public void setId(Long id) { this.id = id; }
     public void setNombre(String nombre) { this.nombre = nombre; }
@@ -68,4 +72,5 @@ public class Prenda {
     public void setUsuario(Usuario usuario) { this.usuario = usuario; }
     public void setVecesUsado(Integer vecesUsado) { this.vecesUsado = vecesUsado; }
     public void setUltimoUso(java.time.LocalDate ultimoUso) { this.ultimoUso = ultimoUso; }
+    public void setMarca(String marca) { this.marca = marca; }
 }
