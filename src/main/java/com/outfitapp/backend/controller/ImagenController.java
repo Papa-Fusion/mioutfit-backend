@@ -24,13 +24,26 @@ public class ImagenController {
     public ResponseEntity<?> procesarImagen(@RequestParam("file") MultipartFile file) {
         try {
             byte[] imagenOriginal = file.getBytes();
-            byte[] imagenSinFondo = removeBgService.eliminarFondo(
-                imagenOriginal, file.getOriginalFilename()
-            );
+            byte[] imagenASubir;
+
+            try {
+                // Intentar eliminar el fondo con remove.bg
+                imagenASubir = removeBgService.eliminarFondo(
+                    imagenOriginal, file.getOriginalFilename()
+                );
+            } catch (Exception removeBgEx) {
+                // Si remove.bg falla (cupo agotado, error de red, etc.)
+                // se sube la imagen original sin procesar
+                System.out.println("remove.bg no disponible, subiendo imagen original: "
+                    + removeBgEx.getMessage());
+                imagenASubir = imagenOriginal;
+            }
+
             String url = cloudinaryService.subirImagen(
-                imagenSinFondo, file.getOriginalFilename()
+                imagenASubir, file.getOriginalFilename()
             );
             return ResponseEntity.ok(Map.of("secure_url", url));
+
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                 .body(Map.of("error", "No se pudo procesar la imagen"));
