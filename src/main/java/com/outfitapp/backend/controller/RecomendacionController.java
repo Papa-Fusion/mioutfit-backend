@@ -1,7 +1,9 @@
 package com.outfitapp.backend.controller;
 
+import com.outfitapp.backend.model.Prenda;
 import com.outfitapp.backend.model.Usuario;
-import com.outfitapp.backend.service.RecomendacionService;
+import com.outfitapp.backend.service.GeminiService;
+import com.outfitapp.backend.service.PrendaService;
 import com.outfitapp.backend.service.UsuarioService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -9,23 +11,89 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/recomendaciones")
 public class RecomendacionController {
 
-    private final RecomendacionService recomendacionService;
+    private final PrendaService prendaService;
     private final UsuarioService usuarioService;
+    private final GeminiService geminiService;
 
-    public RecomendacionController(RecomendacionService recomendacionService,
-                                   UsuarioService usuarioService) {
-        this.recomendacionService = recomendacionService;
+    public RecomendacionController(PrendaService prendaService,
+                                   UsuarioService usuarioService,
+                                   GeminiService geminiService) {
+        this.prendaService = prendaService;
         this.usuarioService = usuarioService;
+        this.geminiService = geminiService;
     }
 
-    @GetMapping
-    public ResponseEntity<List<Map<String, Object>>> obtener(Authentication auth) {
+    @GetMapping("/combinar")
+    public ResponseEntity<?> combinar(
+            @RequestParam String clima,
+            Authentication auth) {
+
         Usuario usuario = (Usuario) usuarioService.loadUserByUsername(auth.getName());
-        return ResponseEntity.ok(recomendacionService.recomendar(usuario));
+        List<Prenda> todasLasPrendas = prendaService.obtenerPorUsuario(usuario);
+
+        if (todasLasPrendas.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        // Construir lista de prendas para el prompt
+        String listaPrendas = todasLasPrendas.stream()
+                .map(p -> String.format(
+                    "- ID:%d | Tipo:%s | Nombre:%s | Color:%s | Categoria:%s | ImagenUrl:%s",
+                    p.getId(),
+                    p.getTipo() != null ? p.getTipo() : "Sin tipo",
+                    p.getNombre(),
+                    p.getColor() != null ? p.getColor() : "Sin color",
+                    p.getCategoria() != null ? p.getCategoria() : "Sin categoria",
+                    p.getImagenUrl() != null ? p.getImagenUrl() : ""
+                ))
+                .collect(Collectors.joining("\n"));
+
+        String prompt = String.format("""
+            Eres un experto en moda y estilismo. El usuario tiene las siguientes prendas en su armario:
+            
+            %s
+            
+            El clima actual es: %s
+            
+            Tu tarea es sugerir exactamente 3 combinaciones de outfits usando SOLO las prendas de la lista.
+            Cada combinación debe tener:
+            - Una prenda superior (Camiseta/Top, Camisa/Blusa, Suéter/Knitwear)
+            - Una prenda inferior (Pantalón/Jean, Short/Bermuda, Falda) O una prenda de cuerpo entero (Vestido, Enterizo)
+            - Opcionalmente una chaqueta si el clima es fresco o frío
+            - Opcionalmente calzado
+            
+            Considera el clima para elegir prendas apropiadas y combina los colores de forma armoniosa.
+            
+            Responde ÚNICAMENTE con un array JSON válido con este formato exacto, sin texto adicional, sin markdown, sin explicaciones:
+            [
+              {
+                "nombre": "Nombre creativo del look",
+                "motivo": "Por qué combinan bien estos colores y es apropiado para el clima (máximo 20 palabras)",
+                "prendas": [
+                  {"id": 1, "nombre": "Nombre prenda", "tipo": "Tipo", "color": "Color", "imagenUrl": "url"},
+                  {"id": 2, "nombre": "Nombre prenda", "tipo": "Tipo", "color": "Color", "imagenUrl": "url"}
+                ]
+              }
+            ]
+            """, listaPrendas, clima);
+
+        try {
+            String respuesta = geminiService.sugerirCombinaciones(prompt);
+            // Limpiar posibles backticks de markdown que Gemini a veces agrega
+            respuesta = respuesta.trim()
+                    .replaceAll("```json", "")
+                    .replaceAll("```", "")
+                    .trim();
+            return ResponseEntity.ok(Map.of("combinaciones", respuesta));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "No se pudieron generar combinaciones"));
+        }
     }
 }
