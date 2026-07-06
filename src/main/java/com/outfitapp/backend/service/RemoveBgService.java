@@ -15,7 +15,7 @@ public class RemoveBgService {
     private String apiKey;
 
     private final WebClient webClient = WebClient.builder()
-            .baseUrl("https://sdk.photoroom.com/v1")
+    		.baseUrl("https://api.remove.bg/v1.0")
             .build();
 
     public byte[] eliminarFondo(byte[] imagenBytes, String nombreArchivo) {
@@ -26,8 +26,8 @@ public class RemoveBgService {
         }, MediaType.APPLICATION_OCTET_STREAM);
 
         return webClient.post()
-                .uri("/segment")
-                .header("x-api-key", apiKey)
+        		.uri("/removebg")
+        		.header("X-Api-Key", apiKey)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(BodyInserters.fromMultipartData(builder.build()))
                 .retrieve()
