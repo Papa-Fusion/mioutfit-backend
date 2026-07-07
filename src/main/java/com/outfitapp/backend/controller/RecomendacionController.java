@@ -55,33 +55,34 @@ public class RecomendacionController {
                 .collect(Collectors.joining("\n"));
 
         String prompt = String.format("""
-            Eres un experto en moda y estilismo. El usuario tiene las siguientes prendas en su armario:
-            
-            %s
-            
-            El clima actual es: %s
-            
-            Tu tarea es sugerir exactamente 3 combinaciones de outfits usando SOLO las prendas de la lista.
-            Cada combinación debe tener:
-            - Una prenda superior (Camiseta/Top, Camisa/Blusa, Suéter/Knitwear)
-            - Una prenda inferior (Pantalón/Jean, Short/Bermuda, Falda) O una prenda de cuerpo entero (Vestido, Enterizo)
-            - Opcionalmente una chaqueta si el clima es fresco o frío
-            - Opcionalmente calzado
-            
-            Considera el clima para elegir prendas apropiadas y combina los colores de forma armoniosa.
-            
-            Responde ÚNICAMENTE con un array JSON válido con este formato exacto, sin texto adicional, sin markdown, sin explicaciones:
-            [
-              {
-                "nombre": "Nombre creativo del look",
-                "motivo": "Por qué combinan bien estos colores y es apropiado para el clima (máximo 20 palabras)",
-                "prendas": [
-                  {"id": 1, "nombre": "Nombre prenda", "tipo": "Tipo", "color": "Color", "imagenUrl": "url"},
-                  {"id": 2, "nombre": "Nombre prenda", "tipo": "Tipo", "color": "Color", "imagenUrl": "url"}
-                ]
-              }
-            ]
-            """, listaPrendas, clima);
+        	    Eres un experto en moda y estilismo. El usuario tiene las siguientes prendas en su armario:
+        	    
+        	    %s
+        	    
+        	    El clima actual es: %s
+        	    
+        	    Tu tarea es sugerir exactamente 3 combinaciones de outfits usando SOLO las prendas de la lista.
+        	    
+        	    REGLAS ESTRICTAS — si no puedes cumplirlas, omite esa combinación:
+        	    1. Cada combinación DEBE tener exactamente UNA prenda superior (Camiseta/Top, Camisa/Blusa, Suéter/Knitwear, Chaqueta/Abrigo).
+        	    2. Cada combinación DEBE tener exactamente UNA prenda inferior (Pantalón/Jean, Short/Bermuda, Falda) O exactamente UNA prenda de cuerpo entero (Vestido, Enterizo/Jumpsuit). Nunca ambas.
+        	    3. NUNCA combines dos prendas del mismo tipo (ej: dos camisetas, dos pantalones).
+        	    4. Opcionalmente puedes agregar calzado (Zapatos/Calzado).
+        	    5. Considera el clima para elegir prendas apropiadas.
+        	    6. Combina los colores de forma armoniosa.
+        	    
+        	    Responde ÚNICAMENTE con un array JSON válido con este formato exacto, sin texto adicional, sin markdown, sin explicaciones:
+        	    [
+        	      {
+        	        "nombre": "Nombre creativo del look",
+        	        "motivo": "Por qué combinan bien estos colores y es apropiado para el clima (máximo 20 palabras)",
+        	        "prendas": [
+        	          {"id": 1, "nombre": "Nombre prenda", "tipo": "Tipo", "color": "Color", "imagenUrl": "url"},
+        	          {"id": 2, "nombre": "Nombre prenda", "tipo": "Tipo", "color": "Color", "imagenUrl": "url"}
+        	        ]
+        	      }
+        	    ]
+        	    """, listaPrendas, clima);
 
         try {
             String respuesta = geminiService.sugerirCombinaciones(prompt);
