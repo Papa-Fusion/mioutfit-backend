@@ -32,16 +32,16 @@ public class RecomendacionController {
     @GetMapping("/combinar")
     public ResponseEntity<?> combinar(
             @RequestParam String clima,
+            @RequestParam(required = false, defaultValue = "") String categoria,
             Authentication auth) {
 
         Usuario usuario = (Usuario) usuarioService.loadUserByUsername(auth.getName());
         List<Prenda> todasLasPrendas = prendaService.obtenerPorUsuario(usuario);
 
         if (todasLasPrendas.isEmpty()) {
-            return ResponseEntity.ok(List.of());
+            return ResponseEntity.ok(Map.of("combinaciones", "[]"));
         }
 
-        // Construir lista de prendas para el prompt
         String listaPrendas = todasLasPrendas.stream()
                 .map(p -> String.format(
                     "- ID:%d | Tipo:%s | Nombre:%s | Color:%s | Categoria:%s | ImagenUrl:%s",
@@ -54,39 +54,42 @@ public class RecomendacionController {
                 ))
                 .collect(Collectors.joining("\n"));
 
+        String reglaCategoria = categoria.isBlank() ? "" :
+                "7. El estilo de TODAS las combinaciones debe ser exclusivamente: " + categoria +
+                ". Prioriza prendas cuya categoría coincida con este estilo.\n";
+
         String prompt = String.format("""
-        	    Eres un experto en moda y estilismo. El usuario tiene las siguientes prendas en su armario:
-        	    
-        	    %s
-        	    
-        	    El clima actual es: %s
-        	    
-        	    Tu tarea es sugerir exactamente 3 combinaciones de outfits usando SOLO las prendas de la lista.
-        	    
-        	    REGLAS ESTRICTAS — si no puedes cumplirlas, omite esa combinación:
-        	    1. Cada combinación DEBE tener exactamente UNA prenda superior (Camiseta/Top, Camisa/Blusa, Suéter/Knitwear, Chaqueta/Abrigo).
-        	    2. Cada combinación DEBE tener exactamente UNA prenda inferior (Pantalón/Jean, Short/Bermuda, Falda) O exactamente UNA prenda de cuerpo entero (Vestido, Enterizo/Jumpsuit). Nunca ambas.
-        	    3. NUNCA combines dos prendas del mismo tipo (ej: dos camisetas, dos pantalones).
-        	    4. Opcionalmente puedes agregar calzado (Zapatos/Calzado).
-        	    5. Considera el clima para elegir prendas apropiadas.
-        	    6. Combina los colores de forma armoniosa.
-        	    
-        	    Responde ÚNICAMENTE con un array JSON válido con este formato exacto, sin texto adicional, sin markdown, sin explicaciones:
-        	    [
-        	      {
-        	        "nombre": "Nombre creativo del look",
-        	        "motivo": "Por qué combinan bien estos colores y es apropiado para el clima (máximo 20 palabras)",
-        	        "prendas": [
-        	          {"id": 1, "nombre": "Nombre prenda", "tipo": "Tipo", "color": "Color", "imagenUrl": "url"},
-        	          {"id": 2, "nombre": "Nombre prenda", "tipo": "Tipo", "color": "Color", "imagenUrl": "url"}
-        	        ]
-        	      }
-        	    ]
-        	    """, listaPrendas, clima);
+                Eres un experto en moda y estilismo. El usuario tiene las siguientes prendas en su armario:
+                
+                %s
+                
+                El clima actual es: %s
+                
+                Tu tarea es sugerir exactamente 3 combinaciones de outfits usando SOLO las prendas de la lista.
+                
+                REGLAS ESTRICTAS — si no puedes cumplirlas, omite esa combinación:
+                1. Cada combinación DEBE tener exactamente UNA prenda superior (Camiseta/Top, Camisa/Blusa, Suéter/Knitwear, Chaqueta/Abrigo).
+                2. Cada combinación DEBE tener exactamente UNA prenda inferior (Pantalón/Jean, Short/Bermuda, Falda) O exactamente UNA prenda de cuerpo entero (Vestido, Enterizo/Jumpsuit). Nunca ambas.
+                3. NUNCA combines dos prendas del mismo tipo (ej: dos camisetas, dos pantalones).
+                4. Opcionalmente puedes agregar calzado (Zapatos/Calzado).
+                5. Considera el clima para elegir prendas apropiadas.
+                6. Combina los colores de forma armoniosa.
+                %s
+                Responde ÚNICAMENTE con un array JSON válido con este formato exacto, sin texto adicional, sin markdown, sin explicaciones:
+                [
+                  {
+                    "nombre": "Nombre creativo del look",
+                    "motivo": "Por qué combinan bien estos colores y es apropiado para el clima (máximo 20 palabras)",
+                    "prendas": [
+                      {"id": 1, "nombre": "Nombre prenda", "tipo": "Tipo", "color": "Color", "imagenUrl": "url"},
+                      {"id": 2, "nombre": "Nombre prenda", "tipo": "Tipo", "color": "Color", "imagenUrl": "url"}
+                    ]
+                  }
+                ]
+                """, listaPrendas, clima, reglaCategoria);
 
         try {
             String respuesta = geminiService.sugerirCombinaciones(prompt);
-            // Limpiar posibles backticks de markdown que Gemini a veces agrega
             respuesta = respuesta.trim()
                     .replaceAll("```json", "")
                     .replaceAll("```", "")
