@@ -12,6 +12,10 @@ public class GeminiService {
 
     @Value("${gemini.api.key}")
     private String apiKey;
+    
+    @Value("${gemini.model:gemini-3.1-flash-lite}")
+    private String modelo;
+
 
     private final WebClient webClient = WebClient.builder()
             .baseUrl("https://generativelanguage.googleapis.com")
@@ -25,10 +29,10 @@ public class GeminiService {
                 ))
             )
         );
-
+        
         Map response = webClient.post()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/v1beta/models/gemini-2.0-flash:generateContent")
+                		.path("/v1beta/models/" + modelo + ":generateContent")
                         .queryParam("key", apiKey)
                         .build())
                 .contentType(MediaType.APPLICATION_JSON)
